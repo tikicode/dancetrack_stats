@@ -19,7 +19,7 @@ def get_num_pairs_to_annotate_in_sequence(data_sequence, num_frames):
     pairs_in_sequence = 0
     for x in range(1, num_frames + 1):
         track_ids = len(data_sequence.frame_to_gts[x])
-        comparisons = ((track_ids - 1) * (track_ids - 2)) / 2
+        comparisons = int(((track_ids - 1) * (track_ids - 2)) / 2)
         pairs_in_sequence += comparisons
     return pairs_in_sequence
 
