@@ -3,7 +3,7 @@ import os
 import json
 
 DATA_PATH = 'dancetrack_stats/dancetrack'
-SPLITS = ['train', 'val'] # 'test' does not contain ground truth
+SPLITS = ['train', 'val', 'test'] # 'test' does not contain ground truth
 THRESH = 0.8  # threshold for overlap
 
 def get_track_names(seq_map_path):
@@ -14,6 +14,13 @@ def get_track_names(seq_map_path):
                 track_names.append(line.strip())
     track_nums = [int(name[10:]) for name in track_names]
     return track_names, track_nums
+
+def get_number_of_frames(img_path):
+    num_frames = 0
+    for file in os.listdir(img_path):
+        if file.endswith('.jpg'):
+            num_frames += 1
+    return num_frames
 
 def get_num_pairs_to_annotate_in_sequence(data_sequence, num_frames):
     pairs_in_sequence = 0
@@ -85,19 +92,21 @@ if __name__ == '__main__':
         tracks, nums = get_track_names(seq_map_path)
         for track, num in zip(tracks, nums):
             seq_dir = os.path.join(split_dir, track)
-            data_sequence = Sequence(seq_dir)
+            img_dir = os.path.join(seq_dir, 'img1')
             num_sequences += 1
-            num_frames_in_sequence[num-1] = len(data_sequence.frame_to_gts)
-            total_frames += num_frames_in_sequence[num-1]
-            num_track_ids_in_sequence[num-1] = len(data_sequence.gt_track_id_to_gt_track)
-            num_pairs_to_annotate_in_sequence[num-1] = get_num_pairs_to_annotate_in_sequence(
-                data_sequence, num_frames_in_sequence[num-1]
-            )
-            total_pairs_to_annotate += num_pairs_to_annotate_in_sequence[num-1]
-            num_overlapping_pairs_in_sequence[num-1] = calculate_overlapping_pairs(
-                data_sequence, num_frames_in_sequence[num-1], THRESH
-            )
-            total_overlapping_pairs += num_overlapping_pairs_in_sequence[num-1]
+            num_frames_in_sequence[num-1] = get_number_of_frames(img_dir)
+            if split != 'test':
+                data_sequence = Sequence(seq_dir)
+                total_frames += num_frames_in_sequence[num-1]
+                num_track_ids_in_sequence[num-1] = len(data_sequence.gt_track_id_to_gt_track)
+                num_pairs_to_annotate_in_sequence[num-1] = get_num_pairs_to_annotate_in_sequence(
+                    data_sequence, num_frames_in_sequence[num-1]
+                )
+                total_pairs_to_annotate += num_pairs_to_annotate_in_sequence[num-1]
+                num_overlapping_pairs_in_sequence[num-1] = calculate_overlapping_pairs(
+                    data_sequence, num_frames_in_sequence[num-1], THRESH
+                )
+                total_overlapping_pairs += num_overlapping_pairs_in_sequence[num-1]
     stats_to_json(num_sequences, num_frames_in_sequence, total_frames,
         num_track_ids_in_sequence, num_pairs_to_annotate_in_sequence,
         total_pairs_to_annotate, num_overlapping_pairs_in_sequence, 
