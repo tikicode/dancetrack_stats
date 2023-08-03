@@ -1,8 +1,9 @@
 from track_utils import *
 import os
 import json
+from shapely.geometry import Polygon
 
-DATA_PATH = 'dancetrack_stats/dancetrack'
+DATA_PATH = 'data/dancetrack'
 SPLITS = ['train', 'val', 'test'] # 'test' does not contain ground truth
 THRESH = 0.8  # threshold for overlap
 
@@ -37,27 +38,21 @@ def calculate_overlapping_pairs(data_sequence, num_frames, threshold=0.5):
         track_ids = len(data_sequence.frame_to_gts[x])
         overlaps_in_frame = 0
         for i in range(0, track_ids):
-            for j in range(i, track_ids):
+            for j in range(i+1, track_ids):
                 bbox1 = data_sequence.frame_to_gts[x][i].bbox
                 bbox2 = data_sequence.frame_to_gts[x][j].bbox
-                if calculate_overlap(bbox1, bbox2) > threshold:
+                if box_iou(bbox1, bbox2) > threshold:
                     overlaps_in_frame += 1
                     num_overlapping_pairs += 1  
     return num_overlapping_pairs
 
-def calculate_overlap(bbox1, bbox2):
-    bbox1 = [bbox1[0], bbox1[1], bbox1[0] + bbox1[2], bbox1[1] + bbox1[3]]
-    bbox2 = [bbox2[0], bbox2[1], bbox2[0] + bbox2[2], bbox2[1] + bbox2[3]]
-    xx1 = max(bbox1[0], bbox2[0])
-    yy1 = max(bbox1[1], bbox2[1])
-    xx2 = min(bbox1[2], bbox2[2])
-    yy2 = min(bbox1[3], bbox2[3])
-    if xx2 <= xx1 or yy2 <= yy1:
-        return 0
-    intersection = (xx2 - xx1) * (yy2 - yy1)
-    union = (bbox1[2] - bbox1[0]) * (bbox1[3] - bbox1[1]) + (bbox2[2] - bbox2[0])\
-        * (bbox2[3] - bbox2[1]) - intersection
-    return intersection / union
+def box_iou(bbox1, bbox2):
+    box_1 = [[bbox1[1] - bbox1[3], bbox1[0]], [bbox1[1], bbox1[0]], [bbox1[1], bbox1[0] + bbox1[2]], [bbox1[1] - bbox1[3], bbox1[0] + bbox1[2]]]
+    box_2 = [[bbox2[1] - bbox2[3], bbox2[0]], [bbox2[1], bbox2[0]], [bbox2[1], bbox2[0] + bbox2[2]], [bbox2[1] - bbox2[3], bbox2[0] + bbox2[2]]]
+    poly_1 = Polygon(box_1)
+    poly_2 = Polygon(box_2)
+    iou = poly_1.intersection(poly_2).area / poly_1.union(poly_2).area
+    return iou
 
 def stats_to_json(num_sequences, num_frames_in_sequence, total_frames,
     num_track_ids_in_sequence, num_pairs_to_annotate_in_sequence,
@@ -87,8 +82,8 @@ if __name__ == '__main__':
     num_overlapping_pairs_in_sequence = [None]*100
     total_overlapping_pairs = 0
     for split in SPLITS:
-        split_dir = os.path.join(DATA_PATH, split)
-        seq_map_path = os.path.join(DATA_PATH, split + '_seqmap.txt')
+        split_dir = os.path.join(os.path.dirname( __file__ ), '..', DATA_PATH, split)
+        seq_map_path = os.path.join(os.path.dirname( __file__ ), '..', DATA_PATH, split + '_seqmap.txt')
         tracks, nums = get_track_names(seq_map_path)
         for track, num in zip(tracks, nums):
             seq_dir = os.path.join(split_dir, track)
